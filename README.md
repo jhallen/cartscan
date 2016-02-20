@@ -38,37 +38,36 @@ location manually.
 
 ## Keys
 
-	* 0 - 9:  Allows you to enter an item code directly.  As you enter you can use Backspace to help edit.  Hit Scan or Enter when done.  It is intended that item codes have the form "M1234", so after you enter "1234", "M1234" is recorded.
+* 0 - 9:  Allows you to enter an item code directly.  As you enter you can use Backspace to help edit.  Hit Scan or Enter when done.  It is intended that item codes have the form "M1234", so after you enter "1234", "M1234" is recorded.
 
-	* F1: Switch to locations selection screen.  Hit up arrow and down arrow to scroll through it.  Hit Scan or Enter to select a new location.  Hit F1 again to cancel.
+* F1: Switch to locations selection screen.  Hit up arrow and down arrow to scroll through it.  Hit Scan or Enter to select a new location.  Hit F1 again to cancel.
 
-	* Scan: turn on laser to allow you to scan a barcode.  The laser stays on for a few seconds, then turns off if no barcode was scanned.
+* Scan: turn on laser to allow you to scan a barcode.  The laser stays on for a few seconds, then turns off if no barcode was scanned.
 
-	* Up arrow, down arrow: allows you to scroll through the scanned items.  Hit Delete to delete one of the items.
+* Up arrow, down arrow: allows you to scroll through the scanned items.  Hit Delete to delete one of the items.
 
 
 ## Serial Protocol
 
-	* Use 115200 baud, 8 data bits, 1 stop bit, no parity.
+* Use 115200 baud, 8 data bits, 1 stop bit, no parity.
 
-	* The scanner accepts single line commands, all beginning with "AT".  The command is terminated with
-	  linefeed.  Each command returns a single line response.
+* The scanner accepts single line commands, all beginning with "AT".  The command is terminated with linefeed.  Each command returns a single line response.
 
-	* ATH: Hello.  Response is "OK".
+* ATH: Hello.  Response is "OK".
 
-	* ATE: Erase locations table.  Response is "OK".
+* ATE: Erase locations table.  Response is "OK".
 
-	* ATL"location","description": Add a location to the locations table.  Response is "OK".
+* ATL"location","description": Add a location to the locations table.  Response is "OK".
 
-	* ATDyyyy-mm-dd hh:mm:ss: Set date and time.  Response is "OK".
+* ATDyyyy-mm-dd hh:mm:ss: Set date and time.  Response is "OK".
 
-	* ATF: Get first scanned item.  Response is "mm/dd/yyyy hh:mm:ss","location","item" or END if there are no items.
+* ATF: Get first scanned item.  Response is "mm/dd/yyyy hh:mm:ss","location","item" or END if there are no items.
 
-	* ATN: Get next scanned item.
+* ATN: Get next scanned item.
 
-	* ATX: Erase all scanned items.  Response is "OK".
+* ATX: Erase all scanned items.  Response is "OK".
 
-	* Anything else: Response is "Huh?"
+* Anything else: Response is "Huh?"
 
 
 Code for OPTICON [OPH-1005](http://www.opticonusa.com/products/handheld-solutions/oph-1005.html)
