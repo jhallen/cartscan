@@ -3,6 +3,9 @@
 This is an item tracking application for the Opticon [OPH-1005](http://www.opticonusa.com/products/handheld-solutions/oph-1005.html)
 barcode scanner.  It should also work on the OPH-3001 after a recompile.
 
+The OPH-1005 uses a CRD-1006 cradle with an FTDI USB to serial converted
+built-in.  The OPH-3001 has a USB socket built in.
+
 The idea is that there are locations and items.  You scan a location code to
 set the current location.  Then you scan item codes.  For each item scanned,
 a record is created with a time-stamp, the location code and the item code.
@@ -47,6 +50,26 @@ location manually.
 * Up arrow, down arrow: allows you to scroll through the scanned items.  Hit Delete to delete one of the items.
 
 
+## Screen
+
+The main screen shows the current location and the end of the scanned items table:
+
+	current location
+	-----------------------------
+	mm/dd  location item
+	mm/dd  location item
+	...
+
+As you type in an item manually, the "current location" is replaced with the edit box.
+
+When you hit F1, the locations table is shown:
+
+	Select location
+	-----------------------------
+	location description
+	location description
+	...
+
 ## Serial Protocol
 
 * Use 115200 baud, 8 data bits, 1 stop bit, no parity.
@@ -70,9 +93,17 @@ location manually.
 * Anything else: Response is "Huh?"
 
 
-Code for OPTICON [OPH-1005](http://www.opticonusa.com/products/handheld-solutions/oph-1005.html)
-barcode scanner for tracking carts and a Windows application for
-upload/download.
+## Barcodes
+
+Items begin with any letter, otherwise there is no restriction.  We use code
+39, but the scanner will accept many different formats:
+
+	*M1234*
+
+Locations begin with any number, otherwise there is no restriction.  We use
+code 39, but the scanner will accept many different formats:
+
+	*12*
 
 # Build the Windows application
 
@@ -93,3 +124,5 @@ Turn off scanner.  Hold period, 1 and then hit power.  Select "Application
 download".  Use the Appload application from Opticon to download the .hex
 file.
 
+The SDK, Appload application and USB drivers for the cradle can be found
+(here)[http://old.opticon.com/software.aspx?virtualPath=%2fopticon-software-download--01000000000018.aspx&languageId=01&masterObjectId=00000&productCategoryMasterObjectId=0000&showall=0].
