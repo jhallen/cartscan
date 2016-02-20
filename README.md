@@ -124,5 +124,6 @@ Turn off scanner.  Hold period, 1 and then hit power.  Select "Application
 download".  Use the Appload application from Opticon to download the .hex
 file.
 
-The SDK, Appload application and USB drivers for the cradle can be found
-(here)[http://old.opticon.com/software.aspx?virtualPath=%2fopticon-software-download--01000000000018.aspx&languageId=01&masterObjectId=00000&productCategoryMasterObjectId=0000&showall=0].
+The SDK, Appload application and USB drivers for the cradle can be found:
+
+(http://old.opticon.com/opticon-software-download--01000000000018.aspx)[http://old.opticon.com/opticon-software-download--01000000000018.aspx].
