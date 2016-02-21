@@ -126,6 +126,16 @@ Build with:
 
 	mingw32-make
 
+## Operation
+
+The Windows application is simple: it assumes that the highest numbered
+COM port is connected to the scanner.  When you press the Tranfer button, the
+application connects to the scanner, updates its date / time, uploads the locations
+table from c:\\barcode\\locations.txt and downloads the item database, appending
+it to c:\\barcode\\data.txt.
+
+[App](app.gif)!
+
 # Build the Opticon OPH-1005 application
 
 Install SDK and be sure to include the OPH-1005 scanner and the Rx compiler. 
