@@ -9,7 +9,8 @@ never signed a contract with you.
 
 Talk about overreach, especially given that they include and benefit from
 GNU compilers in their SDK.  Definitely take their EULA into account when
-you select your barcode scanner hardware.
+you select your barcode scanner hardware.  It's too bad because otherwise
+their hardware and SDK are pretty nice.
 
 # cartscan
 
