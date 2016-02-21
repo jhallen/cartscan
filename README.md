@@ -2,8 +2,8 @@
 
 Oh wow, I just discovered that Opticon's EULA is totally rediculous!  I
 think it's trying to claim that any software written to work with their
-scanner is to be considered owned by them!  Good luck with that Opticon, I
-never signed a contract with you.
+scanner ("DEVELOPED SOFTWARE") is to be considered owned by them!  Good luck
+with that Opticon, I never signed a contract with you.
 
 [EULA](http://www.opticonusa.com/downloads/documents/Opticon_End_User_License_Agreement.pdf)
 
