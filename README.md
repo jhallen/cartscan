@@ -78,7 +78,7 @@ When you hit F1, the locations table is shown:
 
 * Use 115200 baud, 8 data bits, 1 stop bit, no parity.
 
-* The scanner accepts single line commands, all beginning with "AT".  The command is terminated with linefeed.  Each command returns a single line response.
+* The scanner accepts single line commands, all beginning with "AT".  The command is terminated with linefeed or carriage return.  Each command returns a single line response (the line is terminated with CR-LF).
 
 * ATH: Hello.  Response is "OK".
 
