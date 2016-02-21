@@ -21,7 +21,7 @@ collected you can determine which customers haven't yet returned your carts.
 The records are downloaded to a PC and appended to a file
 C:\\barcode\\data.txt.  The records are in csv format:
 
-	"2/12/2016 23:12:15","location","item"
+	"2/12/2016 23:12:15","location-code","item-code"
 
 Records from several scanners can all be appended to this same file.  The
 most recent record (based on the time stamp) for any given item gives its
@@ -32,7 +32,7 @@ The barcode scanner has a table of known locations.  This table can be
 uploaded to the scanner and is usually stored in C:\\barcode\\locations.txt. 
 It's also a csv file in this format:
 
-	"location","description"
+	"location-code","description"
 
 When you scan a location code, the current location is changed and the
 description is shown if it's known.  Also you can hit F1, scroll through the
@@ -41,13 +41,13 @@ location manually.
 
 ## Keys
 
-* 0 - 9:  Allows you to enter an item code directly.  As you enter you can use Backspace to help edit.  Hit Scan or Enter when done.  It is intended that item codes have the form "M1234", so after you enter "1234", "M1234" is recorded.
+* 0 - 9:  Allows you to enter an item or location code directly.  As you enter you can use Backspace to help edit.  Hit Scan or Enter when done.  If you entered three digits or less it's treated as if you scanned a location code.  If you entered four digits or more it's treated as if you scanned an item code, except that 'M' is prefixed in front of the code.
 
-* F1: Switch to locations selection screen.  Hit up arrow and down arrow to scroll through it.  Hit Scan or Enter to select a new location.  Hit F1 again to cancel.
+* F1: Switch to location selection screen.  Hit up arrow and down arrow to scroll through the known locations.  Hit Scan or Enter to select a new current location.  Hit F1 again to cancel.
 
 * Scan: turn on laser to allow you to scan a barcode.  The laser stays on for a few seconds, then turns off if no barcode was scanned.
 
-* Up arrow, down arrow: allows you to scroll through the scanned items.  Hit Delete to delete one of the items.
+* Up arrow, down arrow: allows you to scroll through the scanned items.  The arrow keys have auto-repeat.  Hit Delete to delete one of the items.
 
 
 ## Screen
@@ -103,7 +103,14 @@ Items begin with any letter, otherwise there is no restriction.  We use code
 Locations begin with any number, otherwise there is no restriction.  We use
 code 39, but the scanner will accept many different formats:
 
-	*12*
+	*123*
+
+## Color
+
+Locations below 10 are treated as "Home" locations.  Locations above "10"
+are treated as "away" locations.  When an item is scanned in a home location
+it is displayed with green text.  When an item is scanned in an away
+location, it is displayed in yellow text.
 
 # Build the Windows application
 
