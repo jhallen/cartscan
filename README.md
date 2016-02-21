@@ -134,7 +134,7 @@ application connects to the scanner, updates its date / time, uploads the locati
 table from c:\\barcode\\locations.txt and downloads the item database, appending
 it to c:\\barcode\\data.txt.
 
-[App](app.gif)!
+![App](app.gif)
 
 # Build the Opticon OPH-1005 application
 
