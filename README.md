@@ -7,16 +7,19 @@ The OPH-1005 uses a CRD-1006 cradle with an FTDI USB to serial converted
 built-in.  The OPH-3001 has a USB socket built in.
 
 The idea is that there are locations and items.  You scan a location code to
-set the current location.  Then you scan item codes.  For each item scanned,
-a record is created with a time-stamp, the location code and the item code.
+set the current location.  Then you scan one or more item codes to assert
+that they are in the current location.  For each item scanned, a record is
+created with a time-stamp, the location code and the item code.
 
 The original purpose of this application is to keep track of carts for a
 greenhouse operation.  Flowers are shipped to customers on carts, but the
-customers are supposed to return the carts.  So the locations include a code
-for the home location (the greenhouse), a location code for each customer
-and an item code for each cart.  When carts are shipped to customers, they
-are scanned.  When they are returned they are also scanned.  With the data
-collected you can determine which customers haven't yet returned your carts.
+customers are supposed to return the carts (but often don't).  So the
+locations include a code for the home location (the greenhouse), a location
+code for each customer and an item code for each cart.  When carts are
+shipped to customers, they are scanned with the current location set to the
+customer.  When they are returned they are also scanned but with the current
+location set to home.  With the data collected you can determine which
+customers haven't yet returned your carts.
 
 The records are downloaded to a PC and appended to a file
 C:\\barcode\\data.txt.  The records are in csv format:
@@ -25,7 +28,7 @@ C:\\barcode\\data.txt.  The records are in csv format:
 
 Records from several scanners can all be appended to this same file.  The
 most recent record (based on the time stamp) for any given item gives its
-current location.  A separate application (for example MS-Access) can be
+last known location.  A separate application (for example MS-Access) can be
 used to make nice reports based on the data in this file.
 
 The barcode scanner has a table of known locations.  This table can be
@@ -60,7 +63,8 @@ The main screen shows the current location and the end of the scanned items tabl
 	mm/dd  location item
 	...
 
-As you type in an item manually, the "current location" is replaced with the edit box.
+As you type in an item manually, the "current location" is replaced with the
+code entered so far.
 
 When you hit F1, the locations table is shown:
 

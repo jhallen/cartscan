@@ -1,3 +1,8 @@
+/* Item tracking application for Opticon OPH-1005 / OPH-3001
+ *
+ * by: Joseph Allen
+ */
+
 #include "lib.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,15 +11,14 @@
 /* Serial port handle */
 
 int port;
-int port_byte;
 
 /* Screen size */
 
 #define SCRN_WIDTH 20
 #define SCRN_HEIGHT 13
 
-/* Number of database lines which fit on the screen */
-#define DB_LINES (SCRN_HEIGHT - 2)
+/* Number of table lines which fit on the screen */
+#define TABLE_LINES (SCRN_HEIGHT - 2)
 
 /* Attributes */
 
@@ -120,7 +124,7 @@ void scrn_init()
 	scrn_clr();
 }
 
-/* Draw text */
+/* Draw text with attributes */
 void scrn_text(int y, int x, int attr, char *s)
 {
 	if (y < 0 || y >= SCRN_HEIGHT)
@@ -145,95 +149,100 @@ void scrn_gsep(int y)
 }
 
 
-/* Customer code to customer name table */
+/* Location code to location name table */
 
-struct customer {
-	struct customer *next, *prev;
+struct location {
+	struct location *next, *prev;
 	char *code;
 	char *name;
 };
 
-struct customer customers[1] = { { customers, customers, "End of file" } };
-struct customer *cust_top = customers;
-struct customer *cust_cur = customers;
+struct location locations[1] = { { locations, locations, "End of file" } };
+struct location *loc_top = locations;
+struct location *loc_cur = locations;
 
-void add_cust(char *code, char *name)
+void free_loc(struct location *r)
 {
-	struct customer *cust = (struct customer *)malloc(sizeof(struct customer));
-	int empty = (cust_top == cust_cur);
-	cust->code = strdup(code);
-	cust->name = strdup(name);
-	cust->next = customers;
-	cust->prev = customers->prev;
-	customers->prev->next = cust;
-	customers->prev = cust;
+	free(r->code);
+	free(r->name);
+	free(r);
+}
+
+void add_loc(char *code, char *name)
+{
+	struct location *loc = (struct location *)malloc(sizeof(struct location));
+	int empty = (loc_top == loc_cur);
+	loc->code = strdup(code);
+	loc->name = strdup(name);
+	loc->next = locations;
+	loc->prev = locations->prev;
+	locations->prev->next = loc;
+	locations->prev = loc;
 	if (empty) {
-		cust_top = cust;
+		loc_top = loc;
 	}
-	cust_cur = cust->next;
+	loc_cur = loc->next;
 	update_needed = 1;
 }
 
-char *find_cust(char *code)
+char *find_loc(char *code)
 {
-	struct customer *cust;
-	for (cust = customers->next; cust != customers; cust = cust->next)
-		if (!strcmp(cust->code, code))
-			return cust->name;
+	struct location *loc;
+	for (loc = locations->next; loc != locations; loc = loc->next)
+		if (!strcmp(loc->code, code))
+			return loc->name;
 	return "<unknown>";
 }
 
-/* Customer cursor top */
+/* Location cursor top */
 
-void cust_cursor_top()
+void loc_cursor_top()
 {
-	cust_cur = customers->next;
-	cust_top = customers->next;
+	loc_cur = locations->next;
+	loc_top = locations->next;
 	update_needed = 1;
 }
 
-/* Customer cursor up */
+/* Location cursor up */
 
-void cust_cursor_up()
+void loc_cursor_up()
 {
-	if (cust_cur->prev != customers) {
-		if (cust_cur == cust_top)
-			cust_top = cust_cur;
-		cust_cur = cust_cur->prev;
+	if (loc_cur->prev != locations) {
+		if (loc_cur == loc_top)
+			loc_top = loc_cur;
+		loc_cur = loc_cur->prev;
 		update_needed = 1;
 	}
 }
 
-/* Customer cursor down */
+/* Location cursor down */
 
-void cust_cursor_down()
+void loc_cursor_down()
 {
-	if (cust_cur->next != customers) {
-		cust_cur = cust_cur->next;
+	if (loc_cur->next != locations) {
+		loc_cur = loc_cur->next;
 		update_needed = 1;
 	}
 }
 
-/* Erase all customers */
+/* Erase all locations */
 
-void cust_erase()
+void loc_erase()
 {
-	while (customers->next != customers) {
-		struct customer *r = customers->next;
+	while (locations->next != locations) {
+		struct location *r = locations->next;
 		r->next->prev = r->prev;
 		r->prev->next = r->next;
-		free(r->code);
-		free(r->name);
-		free(r);
+		free_loc(r);
 	}
-	cust_cursor_top();
+	loc_cursor_top();
 }
 
-/* Generate customer screen */
+/* Generate location screen */
 
-void cust_scrn_gen()
+void loc_scrn_gen()
 {
-	struct customer *r;
+	struct location *r;
 	int count = 0;
 	scrn_clr();
 	scrn_text(0, 0, 0, "Select location");
@@ -241,22 +250,22 @@ void cust_scrn_gen()
 	/* Follow cursor */
 	/* How many lines between cursor and top? */
 	count = 0;
-	for (r = cust_cur; r != cust_top; r = r->prev) {
+	for (r = loc_cur; r != loc_top; r = r->prev) {
 		++count;
-		if (count == DB_LINES) {
+		if (count == TABLE_LINES) {
 			break;
 		}
-		if (r->prev == customers)
+		if (r->prev == locations)
 			break;
 	}
-	if (r != cust_top)
-		cust_top = r;
+	if (r != loc_top)
+		loc_top = r;
 	/* Print lines */
 	count = 0;
-	for (r = cust_top; r != customers && count != DB_LINES; r = r->next) {
+	for (r = loc_top; r != locations && count != TABLE_LINES; r = r->next) {
 		char buf[80];
 		sprintf(buf, "%2s %s", r->code, r->name);
-		if (r == cust_cur)
+		if (r == loc_cur)
 			scrn_text(2 + count, 0, SCRN_INVERSE, buf);
 		else
 			scrn_text(2 + count, 0, 0, buf);
@@ -264,35 +273,43 @@ void cust_scrn_gen()
 	}
 }
 
-
-/* Scan events */
+/* Scanned items table */
 
 struct record {
 	struct record *next, *prev;
-	char *cust; /* Customer code */
-	char *cart; /* Cart code */
+	char *loc; /* Location code */
+	char *item; /* Item code */
 	struct date date;
 	struct time time;
 };
 
-struct record database[1] = { { database, database, "End of file" } };
-struct record *top = database; /* First line on screen */
-struct record *cur = database; /* Line with cursor */
+struct record records[1] = { { records, records, "End of file" } };
+struct record *top = records; /* First line on screen */
+struct record *cur = records; /* Line with cursor */
+
+/* Free an item */
+
+void free_rec(struct record *r)
+{
+	free(r->loc);
+	free(r->item);
+	free(r);
+}
 
 /* Add record to end of database */
 
-void add_rec(char *cust, char *cart, struct date date, struct time time)
+void add_rec(char *loc, char *item, struct date date, struct time time)
 {
 	struct record *r = (struct record *)malloc(sizeof(struct record));
-	int empty = (top == database);
-	r->cust = strdup(cust);
-	r->cart = strdup(cart);
+	int empty = (top == records);
+	r->loc = strdup(loc);
+	r->item = strdup(item);
 	r->date = date;
 	r->time = time;
-	r->next = database;
-	r->prev = database->prev;
-	database->prev->next = r;
-	database->prev = r;
+	r->next = records;
+	r->prev = records->prev;
+	records->prev->next = r;
+	records->prev = r;
 	if (empty) {
 		top = r;
 	}
@@ -305,16 +322,14 @@ void add_rec(char *cust, char *cart, struct date date, struct time time)
 
 void del_rec(void)
 {
-	if (cur != database) {
+	if (cur != records) {
 		struct record *r = cur;
 		r->next->prev = r->prev;
 		r->prev->next = r->next;
 		cur = r->next;
 		if (top == r)
 			top = r->next;
-		free(r->cust);
-		free(r->cart);
-		free(r);
+		free_rec(r);
 		update_needed = 1;
 	}
 }
@@ -323,8 +338,8 @@ void del_rec(void)
 
 void cursor_top()
 {
-	cur = database->next;
-	top = database->next;
+	cur = records->next;
+	top = records->next;
 	update_needed = 1;
 }
 
@@ -332,7 +347,7 @@ void cursor_top()
 
 void cursor_up()
 {
-	if (cur->prev != database) {
+	if (cur->prev != records) {
 		if (cur == top)
 			top = cur->prev;
 		cur = cur->prev;
@@ -344,98 +359,100 @@ void cursor_up()
 
 void cursor_down()
 {
-	if (cur != database) {
+	if (cur != records) {
 		cur = cur->next;
 		update_needed = 1;
 	}
 }
 
-/* Erase database */
+/* Erase all records */
 
 void erase()
 {
-	while (database->next != database) {
-		struct record *r = database->next;
+	while (records->next != records) {
+		struct record *r = records->next;
 		r->next->prev = r->prev;
 		r->prev->next = r->next;
-		free(r->cust);
-		free(r->cart);
-		free(r);
+		free_rec(r);
 	}
 	cursor_top();
 }
 
 /* Generate screen */
 
-char *current_customer_code = 0;
-char *current_customer_name = 0;
+char *current_location_code = 0;
+char *current_location_name = 0;
 
+/* Message to display at top of screen if msg[0] != 0 */
 char msg[80];
 
 void scrn_gen()
 {
 	struct record *r;
 	int count = 0;
+
 	scrn_clr();
+
+	/* Generate first line */
 	if (msg[0]) {
 		scrn_text(0, 0, 0, msg);
-	} else if (current_customer_code) {
+	} else if (current_location_code) {
 		char buf[80];
-		sprintf(buf, "%s %s", current_customer_code, current_customer_name);
-		if (current_customer_code && atoi(current_customer_code) < 10)
+		sprintf(buf, "%s %s", current_location_code, current_location_name);
+		if (current_location_code && atoi(current_location_code) < 10)
 			scrn_text(0, 0, SCRN_INVERSE + SCRN_FG_GREEN, buf);
 		else
 			scrn_text(0, 0, SCRN_INVERSE + SCRN_FG_YELLOW, buf);
 	} else {
 		scrn_text(0, 0, 0, "<Location>");
 	}
-//	if (port_byte) {
-//		char buf[80];
-//		sprintf(buf, "%2.2x", port_byte);
-//		scrn_text(0, SCRN_WIDTH - 2, 0, buf);
-//	}
+
+	/* Generate graphical separator */
 	scrn_gsep(1);
-//	if (msg[0]) {
-//		scrn_text(1, 0, 0, msg);
-//	}
+
 	/* Follow cursor */
 	/* How many lines between cursor and top? */
 	count = 0;
 	for (r = cur; r != top; r = r->prev) {
 		++count;
-		if (count == DB_LINES) {
+		if (count == TABLE_LINES) {
 			break;
 		}
-		if (r->prev == database)
+		if (r->prev == records)
 			break;
 	}
 	if (r != top)
 		top = r;
-	/* Print lines */
+
+	/* Generate table lines */
 	count = 0;
-	for (r = top; r != database && count != DB_LINES; r = r->next) {
+	for (r = top; r != records && count != TABLE_LINES; r = r->next) {
 		char buf[80];
-		sprintf(buf, "%2d/%2d %+8s %+5s", r->date.da_mon, r->date.da_day, r->cust, r->cart);
+		sprintf(buf, "%2d/%2d %+8s %+5s", r->date.da_mon, r->date.da_day, r->loc, r->item);
 		if (r == cur)
-			scrn_text(2 + count, 0, SCRN_INVERSE + ((atoi(r->cust) < 10) ? SCRN_FG_GREEN : SCRN_FG_YELLOW), buf);
+			scrn_text(2 + count, 0, SCRN_INVERSE + ((atoi(r->loc) < 10) ? SCRN_FG_GREEN : SCRN_FG_YELLOW), buf);
 		else
-			scrn_text(2 + count, 0, ((atoi(r->cust) < 10) ? SCRN_FG_GREEN : SCRN_FG_YELLOW), buf);
+			scrn_text(2 + count, 0, ((atoi(r->loc) < 10) ? SCRN_FG_GREEN : SCRN_FG_YELLOW), buf);
 		++count;
 	}
 }
 
-void set_cust(char *cust)
+/* Change current location */
+
+void set_loc(char *loc)
 {
-	if (current_customer_code) {
-		free(current_customer_code);
-		free(current_customer_name);
+	if (current_location_code) {
+		free(current_location_code);
+		free(current_location_name);
 	}
-	current_customer_code = strdup(cust);
-	current_customer_name = strdup(find_cust(cust));
+	current_location_code = strdup(loc);
+	current_location_name = strdup(find_loc(loc));
 	update_needed = 1;
 }
 
-int mode; /* 0 = main screen, 1 = customer selection screen */
+/* Parse comma quoted line into an array
+ * Handles a mix of quoted and non-quoted fields like: 80,"foo bar",fred
+ */
 
 int csv(char *s, char **array, int lim)
 {
@@ -483,6 +500,7 @@ int csv(char *s, char **array, int lim)
 	return x;
 }
 
+/* Write a string to the serial port */
 
 void outs(char *s)
 {
@@ -492,7 +510,27 @@ void outs(char *s)
 	}
 }
 
+/* Format a record in csv and send it to the serial port */
+
+void send_rec(struct record *r)
+{
+	char buf[80];
+	sprintf(buf, "\"%d/%d/%4.4d %2.2d:%2.2d:%2.2d\",\"%s\",\"%s\"\r\n",
+		r->date.da_mon,
+		r->date.da_day,
+		r->date.da_year,
+		r->time.ti_hour,
+		r->time.ti_min,
+		r->time.ti_sec,
+		r->loc,
+		r->item
+	);
+	outs(buf);
+}
+
 #define sz(x) (x), (sizeof(x) - 1)
+
+/* Process a command received from the serial port */
 
 void command(char *cmd)
 {
@@ -501,13 +539,13 @@ void command(char *cmd)
 	if (!strncmp(cmd, sz("ATH"))) {
 		outs("OK\r\n");
 	} else if (!strncmp(cmd, sz("ATE"))) {
-		cust_erase();
+		loc_erase();
 		outs("OK\r\n");
 	} else if (!strncmp(cmd, sz("ATL"))) {
 		char *array[3];
 		if (2 == csv(cmd + 3, array, 2)) {
-			add_cust(array[0], array[1]);
-			cust_cursor_top();
+			add_loc(array[0], array[1]);
+			loc_cursor_top();
 		}
 		outs("OK\r\n");
 	} else if (!strncmp(cmd, sz("ATD"))) {
@@ -534,38 +572,16 @@ void command(char *cmd)
 		}
 		outs("OK\r\n");
 	} else if (!strncmp(cmd, sz("ATF"))) {
-		char buf[80];
 		cursor_top();
-		if (cur != database) {
-			sprintf(buf, "\"%d/%d/%4.4d %2.2d:%2.2d:%2.2d\",\"%s\",\"%s\"\r\n",
-				cur->date.da_mon,
-				cur->date.da_day,
-				cur->date.da_year,
-				cur->time.ti_hour,
-				cur->time.ti_min,
-				cur->time.ti_sec,
-				cur->cust,
-				cur->cart
-			);
-			outs(buf);
+		if (cur != records) {
+			send_rec(cur);
 			cursor_down();
 		} else {
 			outs("END\r\n");
 		}
 	} else if (!strncmp(cmd, sz("ATN"))) {
-		char buf[80];
-		if (cur != database) {
-			sprintf(buf, "\"%d/%d/%4.4d %2.2d:%2.2d:%2.2d\",\"%s\",\"%s\"\r\n",
-				cur->date.da_mon,
-				cur->date.da_day,
-				cur->date.da_year,
-				cur->time.ti_hour,
-				cur->time.ti_min,
-				cur->time.ti_sec,
-				cur->cust,
-				cur->cart
-			);
-			outs(buf);
+		if (cur != records) {
+			send_rec(cur);
 			cursor_down();
 		} else {
 			outs("END\r\n");
@@ -578,58 +594,180 @@ void command(char *cmd)
 	}
 }
 
+/* User hit enter: submit item or change location depending on what
+ * was entered */
+
+void enter(char *buf)
+{
+	if (strlen(buf) < 4) { /* 3 digits or less: assume it's a location */
+		set_loc(buf);
+	} else if (current_location_code) { /* 4 digits or more: assume it's an item */
+		char bf[80];
+		struct date date;
+		struct time time;
+		getdatetime(&date, &time);
+		sprintf(bf,"M%s", buf); /* Prefix item with 'M' */
+		add_rec(current_location_code,
+			bf,
+			date,
+			time
+		);
+	}
+}
+
+/* Display mode */
+int mode; /* 0 = main screen, 1 = location selection screen */
+
 void main(void)
 {
+	/* Serial port input buffer */
 	char inbuf[80];
 	int inbufx = 0;
-	int x;
 
-	/* Add some fake customers for now */
-	add_cust("00", "Home");
-	cust_cursor_top();
+	/* Repeat for arrow keys */
+	unsigned int start_time;
+	unsigned int cur_time;
+	int repeat = 0; /* 1 = up, 2 = down */
+	int repeat_fast = 0; /* set after first repeat */
 
 	scrn_init();
 
 	port = comopen(COM1);
+
+	/* Add some fake locations for now */
+	add_loc("00", "Home");
+	loc_cursor_top();
 	
+	/* Main loop.. */
 	for (;;) {
-		if (mode == 1) {
-			if (update_needed) {
-				cust_scrn_gen();
-				scrn_update();
-				update_needed = 0;
+	        int ch;
+
+		/* Update screen if necessary */
+		if (update_needed) {
+			if (mode == 1)
+				loc_scrn_gen();
+			else
+				scrn_gen();
+			scrn_update();
+			update_needed = 0;
+		}
+
+		/* Any data from serial port? */
+		ch = getcom(0);
+		if (ch >= 0) {
+			if (ch == '\n' || ch == '\r') {
+				inbuf[inbufx] = 0;
+				if (inbuf[0])
+					command(inbuf);
+				inbufx = 0;
+			} else if (ch >= 32 && ch <= 126 && inbufx < sizeof(inbuf) - 1) {
+				inbuf[inbufx++] = ch;
 			}
-			x = getchar();
-			switch (x) {
-				case F1_KEY: { /* Cancel customer selection */
+		}
+
+		/* Any barcodes? */
+		if (mode == 0) {
+			char barbuf[80];
+			struct barcode barcode;
+			unsigned int status;
+			barcode.text = barbuf;
+			barcode.length = 0;
+			barcode.id = 0;
+			barcode.min = 2;
+			barcode.max = 10;
+			status = readbarcode(&barcode);
+			if (status == OK) {
+				if (msg[0]) {
+					msg[0] = 0;
+					update_needed = 1;
+				}
+				scannerpower(OFF, 0);
+				sound(TSTANDARD, VSTANDARD, SHIGH, 0);
+				if (barbuf[0] >= '0' && barbuf[0] <= '9') {
+					/* If it begins with a number assume it's a location */
+					set_loc(barbuf);
+				} else if (barbuf[0] >= 'A' && barbuf[0] <= 'Z') {
+					/* If it begins with a letter assume it's an item */
+					if (current_location_code) {
+						struct date date;
+						struct time time;
+						getdatetime(&date, &time);
+						add_rec(current_location_code,
+							barbuf,
+							date,
+							time
+						);
+					}
+				}
+			}
+		}
+
+		/* Arrow key repeat? */
+		if (repeat) {
+		        int diff;
+		        cur_time = GetTickCount();
+		        diff = cur_time - start_time;
+		        if (diff < 0)
+		                diff += 65536;
+                        if (repeat == 1) {
+                                if (!uppressed()) {
+                                        repeat = 0;
+                                } else if (repeat_fast ? diff >= 2 : diff >= 12) {
+                                        repeat_fast = 1;
+                                        start_time = cur_time;
+                                        if (mode == 1) {
+                                                loc_cursor_up();
+                                        } else {
+                                                cursor_up();
+                                        }
+                                }
+                        } else if (repeat == 2) {
+                                if (!downpressed()) {
+                                        repeat = 0;
+                                } else if (repeat_fast ? diff >= 2 : diff >= 12) {
+                                        repeat_fast = 1;
+                                        start_time = cur_time;
+                                        if (mode == 1) {
+                                                loc_cursor_down();
+                                        } else {
+                                                cursor_down();
+                                        }
+                                }
+                        }
+		}
+
+		/* Any keyboard characters? */
+		ch = getchar();
+		if (ch != -1)
+		        repeat = 0;
+		if (mode == 1) { /* Location selection mode */
+			switch (ch) {
+				case F1_KEY: { /* Cancel location selection */
 					mode = 0;
 					update_needed = 1;
 					break;
-				} case TRIGGER_KEY: case ENT_KEY: { /* Select new customer */
-					set_cust(cust_cur->code);
+				} case TRIGGER_KEY: case ENT_KEY: { /* Select new location */
+					set_loc(loc_cur->code);
 					mode = 0;
 					update_needed = 1;
 					break;
 				} case UP_KEY: {
-					cust_cursor_up();
+					loc_cursor_up();
+					repeat = 1;
+					repeat_fast = 0;
+					start_time = GetTickCount();
 					break;
 				} case DOWN_KEY: {
-					cust_cursor_down();
-					break;
-				} default: {
+					loc_cursor_down();
+					repeat = 2;
+					repeat_fast = 0;
+					start_time = GetTickCount();
 					break;
 				}
 			}
-			idle();
-		} else {
-			if (update_needed) {
-				scrn_gen();
-				scrn_update();
-				update_needed = 0;
-			}
-			x = getchar();
-			switch (x) {
-				case F1_KEY: { /* Select new customer manually */
+		} else { /* Main mode */
+			switch (ch) {
+				case F1_KEY: { /* Select new location manually */
 					mode = 1;
 					if (msg[0]) {
 						msg[0] = 0;
@@ -643,34 +781,25 @@ void main(void)
 						update_needed = 1;
 					}
 					cursor_up();
+					repeat = 1;
+					repeat_fast = 0;
+					start_time = GetTickCount();
 					break;
 				} case '0': case '1': case '2': case '3': case '4':
 				  case '5': case '6': case '7': case '8': case '9': {
 				  	int n = strlen(msg);
-				  	if (n == 0) {
-				  		msg[0] = 'M';
-				  		msg[1] = 0;
-				  		n = 1;
-				  	}
 				  	if (n < 8) {
-				  		msg[n++] = x;
+				  		msg[n++] = ch;
 				  	}
 				  	msg[n] = 0;
 				  	update_needed = 1;
 				  	break;
 				} case ENT_KEY: {
-					if (msg[0] && current_customer_code) {
-						struct date date;
-						struct time time;
-						getdatetime(&date, &time);
-						add_rec(current_customer_code,
-							msg,
-							date,
-							time
-						);
+					if (msg[0]) {
+						enter(msg);
+						msg[0] = 0;
+						update_needed = 1;
 					}
-					msg[0] = 0;
-					update_needed = 1;
 					break;
 				} case DOWN_KEY: {
 					if (msg[0]) {
@@ -678,6 +807,9 @@ void main(void)
 						update_needed = 1;
 					}
 					cursor_down();
+					repeat = 2;
+					repeat_fast = 0;
+					start_time = GetTickCount();
 					break;
 				} case BS_KEY: {
 					int n = strlen(msg);
@@ -691,77 +823,25 @@ void main(void)
 					if (msg[0]) {
 						msg[0] = 0;
 						update_needed = 1;
+					} else {
+						del_rec();
 					}
-					del_rec();
 					break;
 				} case TRIGGER_KEY: {
 					if (msg[0]) {
-						if (msg[0] && current_customer_code) {
-							struct date date;
-							struct time time;
-							getdatetime(&date, &time);
-							add_rec(current_customer_code,
-								msg,
-								date,
-								time
-							);
-						}
+						enter(msg);
 						msg[0] = 0;
 						update_needed = 1;
 					} else {
+						/* Start scanning */
 						scannerpower(ON, 150);
-					}
-					break;
-				} default: {
-					/* Any data from serial port? */
-					x = getcom(0);
-					if (x >= 0) {
-						if (x == '\n' || x == '\r') {
-							inbuf[inbufx] = 0;
-							if (inbuf[0])
-								command(inbuf);
-							inbufx = 0;
-						} else if (x >= 32 && x <= 126 && inbufx < sizeof(inbuf) - 1) {
-							inbuf[inbufx++] = x;
-						}
-					} else {
-						char barbuf[80];
-						struct barcode barcode;
-						unsigned int status;
-						barcode.text = barbuf;
-						barcode.length = 0;
-						barcode.id = 0;
-						barcode.min = 2;
-						barcode.max = 10;
-						status = readbarcode(&barcode);
-						if (status == OK) {
-							if (msg[0]) {
-								msg[0] = 0;
-								update_needed = 1;
-							}
-							scannerpower(OFF, 0);
-							sound(TSTANDARD, VSTANDARD, SHIGH, 0);
-							if (barbuf[0] >= '0' && barbuf[0] <= '9') {
-								set_cust(barbuf);
-							} else if (barbuf[0] >= 'A' && barbuf[0] <= 'Z') {
-								if (current_customer_code) {
-									struct date date;
-									struct time time;
-									getdatetime(&date, &time);
-									add_rec(current_customer_code,
-										barbuf,
-										date,
-										time
-									);
-								}
-							}
-							
-						}
 					}
 					break;
 				}
 			}
-			idle();
 		}
+
+		/* Give OS some time */
+		idle();
 	}
 }
