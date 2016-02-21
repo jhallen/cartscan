@@ -1,3 +1,13 @@
+# Opticon EULA
+
+Well I just discovered that Opticon's EULA sucks big time!  It's trying
+to claim that any software written to work with their scanner is to be
+considered owned by them!
+
+[EULA](http://www.opticonusa.com/downloads/documents/Opticon_End_User_License_Agreement.pdf)
+
+Talk about overreach, especially given that they are using GNU compilers.
+
 # cartscan
 
 This is an item tracking application for the Opticon [OPH-1005](http://www.opticonusa.com/products/handheld-solutions/oph-1005.html)
