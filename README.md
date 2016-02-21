@@ -1,16 +1,16 @@
 # Opticon's EULA
 
-Oh wow, I just discovered that Opticon's EULA is totally rediculous!  I
-think it's trying to claim that any software written to work with their
-scanner ("DEVELOPED SOFTWARE") is to be considered owned by them!  Good luck
-with that Opticon, I never signed a contract with you.
+Oh wow, I've just read Opticon's rediculous EULA.  They actually think that
+their "you accept these terms because you downloaded it" EULA means that
+they own the result of my labor ("DEVELOPED SOFTWARE") without any payment
+or signed contract!
 
 [EULA](http://www.opticonusa.com/downloads/documents/Opticon_End_User_License_Agreement.pdf)
 
-Talk about overreach, especially given that they include and benefit from
-GNU compilers in their SDK.  Definitely take their EULA into account when
-you select your barcode scanner hardware.  It's too bad because otherwise
-their hardware and SDK are pretty nice.
+This is particularly annoying given that they include and benefit from free
+(GPL-licensed) software in their SDK.  Definitely take their EULA into
+account when you select your barcode scanner hardware.  It's too bad because
+otherwise their hardware and SDK are pretty nice.
 
 # cartscan
 
