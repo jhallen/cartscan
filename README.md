@@ -1,7 +1,7 @@
 # Opticon's EULA
 
 Oh wow, I've just read Opticon's ridiculous EULA.  They actually think that
-their "you accept these terms because you downloaded it" EULA means that
+their "you accepted these terms because you downloaded it" EULA means that
 they own the result of my labor ("DEVELOPED SOFTWARE") without any payment
 or signed contract!
 
