@@ -100,6 +100,10 @@ When you hit F1, the locations table is shown:
 
 * ATL"location","description": Add a location to the locations table.  Response is "OK".
 
+* ATV: Get version number of locations table.  Response is "nnn".
+
+* ATVnnn: Set version number of locations tables.  Response is "nnn".
+
 * ATDyyyy-mm-dd hh:mm:ss: Set date and time.  Response is "OK".
 
 * ATF: Get first scanned item.  Response is "mm/dd/yyyy hh:mm:ss","location","item" or END if there are no items.

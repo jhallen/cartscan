@@ -7,6 +7,11 @@ void Append(TCHAR *text);
 
 void Clear();
 
+#define LOCATIONS_VER "c:\\barcode\\locations.ver"
+#define LOCATIONS_FILE "c:\\barcode\\locations.txt"
+#define LOCATIONS_OLD "c:\\barcode\\locations.prv"
+#define DATA_FILE "c:\\barcode\\data.txt"
+
 #define NELEMS(X) (sizeof(X)/sizeof(X[0]))
 
 #define sz(s) (s), (sizeof(s) - 1)
@@ -147,6 +152,132 @@ int GetOK(HANDLE f)
 
 extern HWND hwndLogEdit;
 
+/* Get version of locations.txt file: this is an integer between 0 - 99.
+   If the file does not exist, return -1
+*/
+
+int get_file_version()
+{
+  TCHAR msg[80];
+  char buf[80];
+  char buf1[80];
+  int ver = -1;
+  FILE *g, *h;
+
+  Append(L"Check file version...\n");
+
+  g = fopen(LOCATIONS_FILE, "r");
+  if (!g)
+    return -1;
+
+  h = fopen(LOCATIONS_OLD, "r");
+  if (h) {
+    while (fgets(buf, sizeof(buf), g)) {
+      if (!fgets(buf1, sizeof(buf1), h)) {
+        /* .prv file is short */
+        rewind(g);
+        fclose(h);
+        goto copy;
+      } else if (strcmp(buf, buf1)) {
+        /* at least one line is different */
+        rewind(g);
+        fclose(h);
+        goto copy;
+      }
+    }
+    if (fgets(buf1, sizeof(buf1), h)) {
+      /* .prv file is long */
+      rewind(g);
+      fclose(h);
+      goto copy;
+    }
+    fclose(g);
+    fclose(h);
+    Append(L"File version has not changed\n");
+    g = fopen(LOCATIONS_VER, "r");
+    if (g) {
+      Append(L"  parse version number\n");
+      fscanf(g, "%d", &ver);
+      fclose(g);
+    }
+    wsprintf(msg, L"File version number is %d\n", ver);
+    Append(msg);
+    return ver; /* No version change */
+  }
+
+  /* Copy locations file so we can detect version differences */
+  Append(L"File has changed\n");
+  Append(L"  Copy it for comparison\n");
+  copy: h = fopen(LOCATIONS_OLD, "w");
+  while (fgets(buf, sizeof(buf), g)) {
+    fputs(buf, h);
+  }
+  fclose(g);
+  fclose(h);
+
+  /* Bump version number */
+  Append(L"  bump version number\n");
+  g = fopen(LOCATIONS_VER, "r");
+  if (g) {
+    Append(L"  parse version number\n");
+    fscanf(g, "%d", &ver);
+    fclose(g);
+  }
+  wsprintf(msg, L"Old file version number was %d\n", ver);
+  Append(msg);
+  if (ver >= 99 || ver < 0)
+    ver = 0;
+  else
+    ver = ver + 1;
+  wsprintf(msg, L"New file version number is %d\n", ver);
+  Append(msg);
+  g = fopen(LOCATIONS_VER, "w");
+  fprintf(g, "%d\n", ver);
+  fclose(g);
+
+  return ver;
+}
+
+/* Compare file version with version in scanner- if different, return true
+ */
+
+int check_scanner_version(int file_version, HANDLE f)
+{
+  TCHAR msg[80];
+  char buf[80];
+  int ver = -2;
+  DWORD len = 0;
+  Append(L"Get version number from scanner\n");
+  WriteFile(f, sz("ATV\n"), &len, NULL);
+  GetRec(f, buf);
+  sscanf(buf, "%d", &ver);
+  wsprintf(msg, L"Scanner version number is %d\n", ver);
+  Append(msg);
+  if (ver != file_version)
+    return 1;
+  else
+    return 0;
+}
+
+/* Record version in scanner */
+
+int set_version(int file_version, HANDLE f)
+{
+  char buf[80];
+  int ver = -2;
+  DWORD len = 0;
+  Append(L"Record version on scanner...\n");
+  sprintf(buf, "ATV%d\n", file_version);
+  WriteFile(f, buf, strlen(buf), &len, NULL);
+  GetRec(f, buf);
+  sscanf(buf, "%d", &ver);
+  if (ver != file_version) {
+    Append(L"Couldn't set version\n");
+    return -1;
+  } else
+    return 0;
+}
+
 #define CREDLIM 1
 
 // Window procedure for our main window.
@@ -190,6 +321,7 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         case TransferID:
         {
           int cred; // Credit counter
+          int ver;
           int count;
           char buf[80];
           char buf1[80];
@@ -280,48 +412,55 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             } else {
               goto fail;
             }
-            Append(L"Erase location table\n");
-            WriteFile(f, sz("ATE\n"), &len, NULL);
-            if (GetOK(f)) {
-              Append(L"  OK\n");
-            } else {
-              goto fail;
-            }
-            Append(L"Send locations table\n");
-            FILE *g = fopen("c:\\barcode\\locations.txt", "r");
-            if (g) {
-              count = 0;
-              cred = 0;
-              while (fgets(buf1, sizeof(buf1), g)) {
-                ++count;
-                wsprintf(msg,L"   %hs", buf1);
-                Append(msg);
-                sprintf(buf,"ATL%s", buf1);
-                WriteFile(f, buf, strlen(buf), &len, NULL);
-                ++cred;
-                if (cred == CREDLIM) {
-                  --cred;
+            Append(L"Check if locations need to be updated...\n");
+            if (check_scanner_version((ver = get_file_version()), f)) {
+              Append(L"Erase location table\n");
+              WriteFile(f, sz("ATE\n"), &len, NULL);
+              if (GetOK(f)) {
+                Append(L"  OK\n");
+              } else {
+                goto fail;
+              }
+              Append(L"Send locations table\n");
+              FILE *g = fopen(LOCATIONS_FILE, "r");
+              if (g) {
+                count = 0;
+                cred = 0;
+                while (fgets(buf1, sizeof(buf1), g)) {
+                  ++count;
+                  wsprintf(msg,L"   %hs", buf1);
+                  Append(msg);
+                  sprintf(buf,"ATL%s", buf1);
+                  WriteFile(f, buf, strlen(buf), &len, NULL);
+                  ++cred;
+                  if (cred == CREDLIM) {
+                    --cred;
+                    if (!GetOK(f)) {
+                      fclose(g);
+                      goto fail;
+                    }
+                  }
+                }
+                fclose(g);
+                while (cred--) {
                   if (!GetOK(f)) {
-                    fclose(g);
                     goto fail;
                   }
                 }
-              }
-              fclose(g);
-              while (cred--) {
-                if (!GetOK(f)) {
+                wsprintf(msg, L"Transferred %d records\n", count);
+                Append(msg);
+                if (set_version(ver, f))
                   goto fail;
-                }
+              } else {
+                Append(L"Couldn't open c:\\barcode\\locations.txt\n");
+                goto fail;
               }
-              wsprintf(msg, L"Transferred %d records\n", count);
-              Append(msg);
             } else {
-              Append(L"Couldn't open c:\\barcode\\locations.txt\n");
-              goto fail;
+              Append(L"Scanner has latest version.\n");
             }
 #if 0
             Append(L"Check for old c:\\barcode\\data.txt file...\n");
-            g = fopen("c:\\barcode\\data.txt", "r");
+            FILE *g = fopen(DATA_FILE, "r");
             if (g) {
               fclose(g);
               Append(L"  Old data still present!\n");
@@ -329,7 +468,7 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             }
 #endif
             Append(L"Get scan table\n");
-            g = fopen("c:\\barcode\\data.txt", "a");
+            FILE *g = fopen(DATA_FILE, "a");
             count = 0;
             if (g) {
               for (;;) {

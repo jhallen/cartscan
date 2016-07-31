@@ -546,23 +546,37 @@ void send_rec(struct record *r)
 
 /* Process a command received from the serial port */
 
+char *cur_version;
+
 void command(char *cmd)
 {
 	// strcpy(msg, cmd);
 	update_needed = 1;
-	if (!strncmp(cmd, sz("ATH"))) {
+	if (!strncmp(cmd, sz("ATH"))) { /* Hello */
 		outs("OK\r\n");
-	} else if (!strncmp(cmd, sz("ATE"))) {
+	} else if (!strncmp(cmd, sz("ATE"))) { /* Erase locations */
 		loc_erase();
 		outs("OK\r\n");
-	} else if (!strncmp(cmd, sz("ATL"))) {
+	} else if (!strncmp(cmd, sz("ATL"))) { /* Add a location */
 		char *array[3];
 		if (2 == csv(cmd + 3, array, 2)) {
 			add_loc(array[0], array[1]);
 			loc_cursor_top();
 		}
 		outs("OK\r\n");
-	} else if (!strncmp(cmd, sz("ATD"))) {
+	} else if (!strncmp(cmd, sz("ATV"))) { /* Read or set version number (of locations table) */
+		if (cmd[3]) { /* Set version */
+			if (cur_version)
+				free(cur_version);
+			cur_version = strdup(cmd + 3);
+		}
+		if (cur_version) {
+			outs(cur_version);
+			outs("\r\n");
+		} else {
+			outs("No version\r\n");
+		}
+	} else if (!strncmp(cmd, sz("ATD"))) { /* Set date/time */
 		int year;
 		int month;
 		int day;
@@ -585,7 +599,7 @@ void command(char *cmd)
 			settime(&time);
 		}
 		outs("OK\r\n");
-	} else if (!strncmp(cmd, sz("ATF"))) {
+	} else if (!strncmp(cmd, sz("ATF"))) { /* Read first scan */
 		cursor_top();
 		if (cur != records) {
 			send_rec(cur);
@@ -593,14 +607,14 @@ void command(char *cmd)
 		} else {
 			outs("END\r\n");
 		}
-	} else if (!strncmp(cmd, sz("ATN"))) {
+	} else if (!strncmp(cmd, sz("ATN"))) { /* Read next scan */
 		if (cur != records) {
 			send_rec(cur);
 			cursor_down();
 		} else {
 			outs("END\r\n");
 		}
-	} else if (!strncmp(cmd, sz("ATX"))) {
+	} else if (!strncmp(cmd, sz("ATX"))) { /* Erase scans */
 		erase();
 		outs("OK\r\n");
 	} else {
