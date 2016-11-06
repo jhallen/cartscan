@@ -58,7 +58,7 @@ location manually.
 
 ## Keys
 
-* 0 - 9:  Allows you to enter an item or location code directly.  As you enter you can use Backspace to help edit.  Hit Scan or Enter when done.  If you entered three digits or less it's treated as if you scanned a location code.  If you entered four digits or more it's treated as if you scanned an item code, except that 'M' is prefixed in front of the code.
+* 0 - 9:  Allows you to enter an item or location code directly.  As you enter you can use Backspace to help edit.  Hit Scan or Enter when done.  If you entered three digits or less it's treated as if you scanned a location code.  If you entered the code on the main screen, the code is assumed to be an item and the prefix will be pre-pended to it.  If you entered the code on the locations screen, the new location is selected.
 
 * F1: Switch to location selection screen.  Hit up arrow and down arrow to scroll through the known locations.  Hit Scan or Enter to select a new current location.  Hit F1 again to cancel.
 
@@ -100,9 +100,13 @@ When you hit F1, the locations table is shown:
 
 * ATL"location","description": Add a location to the locations table.  Response is "OK".
 
-* ATV: Get version number of locations table.  Response is "nnn".
+* ATV: Get version string of locations table.  Response is "ssss".
 
-* ATVnnn: Set version number of locations tables.  Response is "nnn".
+* ATVssss: Set version number of locations tables.  Response is "ssss".
+
+* ATP: Get item prefix string.  Response is "pppp".
+
+* ATPpppp: Set item prefix string.  Response is "pppp".
 
 * ATDyyyy-mm-dd hh:mm:ss: Set date and time.  Response is "OK".
 
@@ -151,6 +155,12 @@ COM port is connected to the scanner.  When you press the Tranfer button, the
 application connects to the scanner, updates its date / time, uploads the locations
 table from c:\\barcode\\locations.txt and downloads the item database, appending
 it to c:\\barcode\\data.txt.
+
+The prefix is set from a file c:\\barcode\\prefix.txt.
+
+The locations table is sometimes large.  To save time we record the
+modification date/time of the locations table on the scanner.  Only if the
+locations table has a newer date/time will the table be uploaded.
 
 ![App](app.gif)
 

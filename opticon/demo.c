@@ -22,6 +22,8 @@ Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <stdlib.h>
 #include <string.h>
 
+#define VERSION "3"
+
 /* Serial port handle */
 
 int port;
@@ -254,12 +256,19 @@ void loc_erase()
 
 /* Generate location screen */
 
+/* Message to display at top of screen if msg[0] != 0 */
+char msg[80];
+
 void loc_scrn_gen()
 {
 	struct location *r;
 	int count = 0;
 	scrn_clr();
-	scrn_text(0, 0, 0, "Select location");
+	if (msg[0]) {
+		scrn_text(0, 0, 0, msg);
+	} else {
+		scrn_text(0, 0, 0, "Select location");
+	}
 	scrn_gsep(1);
 	/* Follow cursor */
 	/* How many lines between cursor and top? */
@@ -285,6 +294,45 @@ void loc_scrn_gen()
 			scrn_text(2 + count, 0, 0, buf);
 		++count;
 	}
+}
+
+char *cur_version;
+char *cur_prefix;
+
+/* Generate status screen */
+
+void status_scrn_gen()
+{
+	struct date date;
+	struct time time;
+	char buf[80];
+
+	scrn_clr();
+	scrn_text(0, 0, 0, "Status");
+	scrn_gsep(1);
+	/* Follow cursor */
+	/* How many lines between cursor and top? */
+
+	scrn_text(2, 0, 0, "Prefix:");
+	sprintf(buf, " %s", cur_prefix ? cur_prefix : "<not set>");
+	scrn_text(3, 0, 0, buf);
+
+	scrn_text(4, 0, 0, "Locations version:");
+	sprintf(buf, " %s", cur_version ? cur_version : "<not set>");
+	scrn_text(5, 0, 0, buf);
+
+	getdatetime(&date, &time);
+	scrn_text(6, 0, 0, "Date:");
+	sprintf(buf, " %d/%d/%4.4d", date.da_mon, date.da_day, date.da_year);
+	scrn_text(7, 0, 0, buf);
+
+	scrn_text(8, 0, 0, "Time:");
+	sprintf(buf, " %2.2d:%2.2d:%2.2d", time.ti_hour, time.ti_min, time.ti_sec);
+	scrn_text(9, 0, 0, buf);
+
+	scrn_text(10, 0, 0, "Software version:");
+	sprintf(buf, " %s", VERSION);
+	scrn_text(11, 0, 0, buf);
 }
 
 /* Scanned items table */
@@ -397,9 +445,6 @@ void erase()
 char *current_location_code = 0;
 char *current_location_name = 0;
 
-/* Message to display at top of screen if msg[0] != 0 */
-char msg[80];
-
 void scrn_gen()
 {
 	struct record *r;
@@ -442,7 +487,7 @@ void scrn_gen()
 	count = 0;
 	for (r = top; r != records && count != TABLE_LINES; r = r->next) {
 		char buf[80];
-		sprintf(buf, "%2d/%2d %+8s %+5s", r->date.da_mon, r->date.da_day, r->loc, r->item);
+		sprintf(buf, "%2d/%2d %+5s %+8s", r->date.da_mon, r->date.da_day, r->loc, r->item);
 		if (r == cur)
 			scrn_text(2 + count, 0, SCRN_INVERSE + ((atoi(r->loc) < 10) ? SCRN_FG_GREEN : SCRN_FG_YELLOW), buf);
 		else
@@ -546,8 +591,6 @@ void send_rec(struct record *r)
 
 /* Process a command received from the serial port */
 
-char *cur_version;
-
 void command(char *cmd)
 {
 	// strcpy(msg, cmd);
@@ -572,6 +615,18 @@ void command(char *cmd)
 		}
 		if (cur_version) {
 			outs(cur_version);
+			outs("\r\n");
+		} else {
+			outs("No version\r\n");
+		}
+	} else if (!strncmp(cmd, sz("ATP"))) { /* Read or set prefix */
+		if (cmd[3]) { /* Set prefix */
+			if (cur_prefix)
+				free(cur_prefix);
+			cur_prefix = strdup(cmd + 3);
+		}
+		if (cur_prefix) {
+			outs(cur_prefix);
 			outs("\r\n");
 		} else {
 			outs("No version\r\n");
@@ -622,19 +677,23 @@ void command(char *cmd)
 	}
 }
 
+/* Display mode */
+int mode; /* 0 = main screen, 1 = location selection screen */
+
 /* User hit enter: submit item or change location depending on what
  * was entered */
 
 void enter(char *buf)
 {
-	if (strlen(buf) < 4) { /* 3 digits or less: assume it's a location */
+//	if (strlen(buf) < 4) { /* 3 digits or less: assume it's a location */
+	if (mode == 1) { /* If we entered it on the location screen it's a location */
 		set_loc(buf);
 	} else if (current_location_code) { /* 4 digits or more: assume it's an item */
 		char bf[80];
 		struct date date;
 		struct time time;
 		getdatetime(&date, &time);
-		sprintf(bf,"M%s", buf); /* Prefix item with 'M' */
+		sprintf(bf,"%s%s", (cur_prefix ? cur_prefix : ""), buf); /* Prefix item with cur_prefix */
 		add_rec(current_location_code,
 			bf,
 			date,
@@ -642,9 +701,6 @@ void enter(char *buf)
 		);
 	}
 }
-
-/* Display mode */
-int mode; /* 0 = main screen, 1 = location selection screen */
 
 void main(void)
 {
@@ -674,8 +730,10 @@ void main(void)
 		if (update_needed) {
 			if (mode == 1)
 				loc_scrn_gen();
-			else
+			else if (mode == 0)
 				scrn_gen();
+			else
+				status_scrn_gen();
 			scrn_update();
 			update_needed = 0;
 		}
@@ -694,7 +752,7 @@ void main(void)
 		}
 
 		/* Any barcodes? */
-		if (mode == 0) {
+		if (mode == 0 || mode == 1) {
 			char barbuf[80];
 			struct barcode barcode;
 			unsigned int status;
@@ -705,6 +763,10 @@ void main(void)
 			barcode.max = 10;
 			status = readbarcode(&barcode);
 			if (status == OK) {
+				if (mode) {
+					mode = 0;
+					update_needed = 1;
+				}
 				if (msg[0]) {
 					msg[0] = 0;
 					update_needed = 1;
@@ -768,16 +830,37 @@ void main(void)
 		ch = getchar();
 		if (ch != -1)
 		        repeat = 0;
-		if (mode == 1) { /* Location selection mode */
+		if (mode == 2) { /* Status screen */
 			switch (ch) {
-				case F1_KEY: { /* Cancel location selection */
+				case F1_KEY: case F2_KEY: case TRIGGER_KEY: case ENT_KEY: { /* Cancel location selection */
 					mode = 0;
 					update_needed = 1;
 					break;
-				} case TRIGGER_KEY: case ENT_KEY: { /* Select new location */
-					set_loc(loc_cur->code);
+				}
+			}
+		} else if (mode == 1) { /* Location selection mode */
+			switch (ch) {
+				case F1_KEY: { /* Cancel location selection */
+					msg[0] = 0;
 					mode = 0;
 					update_needed = 1;
+					break;
+				} case F2_KEY: { /* Status screen */
+					msg[0] = 0;
+					mode = 2;
+					update_needed = 1;
+					break;
+				} case TRIGGER_KEY: case ENT_KEY: { /* Select new location */
+					if (msg[0]) {
+						enter(msg);
+						msg[0] = 0;
+						update_needed = 1;
+						mode = 0;
+					} else {
+						set_loc(loc_cur->code);
+						mode = 0;
+						update_needed = 1;
+					}
 					break;
 				} case UP_KEY: {
 					loc_cursor_up();
@@ -791,12 +874,43 @@ void main(void)
 					repeat_fast = 0;
 					start_time = GetTickCount();
 					break;
+				} case '0': case '1': case '2': case '3': case '4':
+				  case '5': case '6': case '7': case '8': case '9': {
+				  	int n = strlen(msg);
+				  	if (n < 8) {
+				  		msg[n++] = ch;
+				  	}
+				  	msg[n] = 0;
+				  	update_needed = 1;
+				  	break;
+				} case BS_KEY: {
+					int n = strlen(msg);
+					if (n) {
+						--n;
+						msg[n] = 0;
+						update_needed = 1;
+					}
+					break;
+				} case CLR_KEY: {
+					if (msg[0]) {
+						msg[0] = 0;
+						update_needed = 1;
+					}
+					break;
 				}
 			}
-		} else { /* Main mode */
+		} else if (mode == 0) { /* Main mode */
 			switch (ch) {
 				case F1_KEY: { /* Select new location manually */
 					mode = 1;
+					if (msg[0]) {
+						msg[0] = 0;
+						update_needed = 1;
+					}
+					update_needed = 1;
+					break;
+				} case F2_KEY: { /* Status scree */
+					mode = 2;
 					if (msg[0]) {
 						msg[0] = 0;
 						update_needed = 1;

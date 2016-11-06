@@ -1,5 +1,8 @@
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include "callbacks.h"
 #include "resource.h"
 
@@ -7,10 +10,11 @@ void Append(TCHAR *text);
 
 void Clear();
 
-#define LOCATIONS_VER "c:\\barcode\\locations.ver"
+// #define LOCATIONS_VER "c:\\barcode\\locations.ver"
+// #define LOCATIONS_OLD "c:\\barcode\\locations.prv"
 #define LOCATIONS_FILE "c:\\barcode\\locations.txt"
-#define LOCATIONS_OLD "c:\\barcode\\locations.prv"
 #define DATA_FILE "c:\\barcode\\data.txt"
+#define PREFIX_FILE "c:\\barcode\\prefix.txt"
 
 #define NELEMS(X) (sizeof(X)/sizeof(X[0]))
 
@@ -152,10 +156,63 @@ int GetOK(HANDLE f)
 
 extern HWND hwndLogEdit;
 
+/* Get file */
+
+int get_prefix(char *s)
+{
+  FILE *f;
+  int n;
+  s[0] = 0;
+  Append(L"Get preifx\n");
+  f = fopen(PREFIX_FILE, "r");
+  if (!f) {
+    Append(L"Couldn't open prefix file\n");
+    return -1;
+  }
+  if (!fgets(s, 79, f)) {
+    Append(L"Couldn't read prefix file\n");
+    return -1;
+  }
+  /* Delete newline */
+  for (n = 0; s[n]; ++n) {
+    if (s[n] == '\r' || s[n] == '\n') {
+      s[n] = 0;
+      break;
+    }
+  }
+  /* Delete any trailing spaces */
+  while (n > 0 && (s[n - 1] == ' ' || s[n - 1] == '\t'))
+    --n;
+  s[n] = 0;
+  return 0;
+}
+
 /* Get version of locations.txt file: this is an integer between 0 - 99.
    If the file does not exist, return -1
 */
 
+int get_file_version(char *s)
+{
+  TCHAR msg[80];
+  struct stat sb;
+  struct tm *tm;
+  s[0] = 0;
+
+  Append(L"Check file version...\n");
+  
+  if (stat(LOCATIONS_FILE, &sb))
+    {
+    Append(L"Couldn't get file version\n");
+    return -1;
+    }
+  tm = localtime(&sb.st_mtime);
+  sprintf(s, "%2.2d-%2.2d-%2.2d %2.2d:%2.2d:%2.2d", (tm->tm_year % 100), 1+tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec);
+  wsprintf(msg, L"File version is %hs\n", s);
+  Append(msg);
+  return 0;
+}
+
+#if 0
 int get_file_version()
 {
   TCHAR msg[80];
@@ -237,42 +294,59 @@ int get_file_version()
 
   return ver;
 }
+#endif
 
 /* Compare file version with version in scanner- if different, return true
  */
 
-int check_scanner_version(int file_version, HANDLE f)
+int check_scanner_version(char *file_version, HANDLE f)
 {
   TCHAR msg[80];
   char buf[80];
   int ver = -2;
   DWORD len = 0;
-  Append(L"Get version number from scanner\n");
+  Append(L"Get version from scanner\n");
   WriteFile(f, sz("ATV\n"), &len, NULL);
   GetRec(f, buf);
   sscanf(buf, "%d", &ver);
-  wsprintf(msg, L"Scanner version number is %d\n", ver);
+  wsprintf(msg, L"Scanner version is %hs\n", buf);
   Append(msg);
-  if (ver != file_version)
+  if (strlen(buf) != strlen(file_version))
     return 1;
-  else
-    return 0;
+  if (strcmp(file_version, buf))
+    return 1;
+  return 0;
 }
 
 /* Record version in scanner */
 
-int set_version(int file_version, HANDLE f)
+int set_version(char *file_version, HANDLE f)
 {
   char buf[80];
-  int ver = -2;
   DWORD len = 0;
   Append(L"Record version on scanner...\n");
-  sprintf(buf, "ATV%d\n", file_version);
+  sprintf(buf, "ATV%s\n", file_version);
   WriteFile(f, buf, strlen(buf), &len, NULL);
   GetRec(f, buf);
-  sscanf(buf, "%d", &ver);
-  if (ver != file_version) {
+  if (strcmp(file_version, buf)) {
     Append(L"Couldn't set version\n");
+    return -1;
+  } else
+    return 0;
+}
+
+/* Record prefix in scanner */
+
+int set_prefix(char *prefix, HANDLE f)
+{
+  char buf[80];
+  DWORD len = 0;
+  Append(L"Record prefix on scanner...\n");
+  sprintf(buf, "ATP%s\n", prefix);
+  WriteFile(f, buf, strlen(buf), &len, NULL);
+  GetRec(f, buf);
+  if (strcmp(prefix, buf)) {
+    Append(L"Couldn't set prefix\n");
     return -1;
   } else
     return 0;
@@ -321,7 +395,8 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         case TransferID:
         {
           int cred; // Credit counter
-          int ver;
+          char ver[80];
+          char prefix[80];
           int count;
           char buf[80];
           char buf1[80];
@@ -412,8 +487,12 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             } else {
               goto fail;
             }
+            Append(L"Set item prefix...\n");
+            if (!get_prefix(prefix))
+              set_prefix(prefix, f);
             Append(L"Check if locations need to be updated...\n");
-            if (check_scanner_version((ver = get_file_version()), f)) {
+            get_file_version(ver);
+            if (check_scanner_version(ver, f)) {
               Append(L"Erase location table\n");
               WriteFile(f, sz("ATE\n"), &len, NULL);
               if (GetOK(f)) {
