@@ -22,7 +22,7 @@ Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <stdlib.h>
 #include <string.h>
 
-#define VERSION "3"
+#define VERSION "4"
 
 /* Serial port handle */
 
@@ -30,8 +30,8 @@ int port;
 
 /* Screen size */
 
-#define SCRN_WIDTH 20
-#define SCRN_HEIGHT 13
+#define SCRN_WIDTH 15
+#define SCRN_HEIGHT 10
 
 /* Number of table lines which fit on the screen */
 #define TABLE_LINES (SCRN_HEIGHT - 2)
@@ -61,6 +61,76 @@ int port;
 #define SCRN_BG_CYAN (2 << SCRN_BG_SCRN)
 #define SCRN_BG_YELLOW (1 << SCRN_BG_SCRN)
 #define SCRN_BG_BLACK (0 << SCRN_BG_SCRN)
+
+/* Shortened-UPC check */
+
+int upc_ok(char *s)
+{
+	int x;
+	// Must be five digits
+	if (strlen(s) != 5)
+		return -1;
+
+	for (x = 0; x != 5; ++x)
+		if (s[x] < '0' || s[x] >'9')
+			return -1;
+
+	// Calculate
+	x = ((s[0]-'0'+s[2]-'0')*3 + (s[1]-'0' + s[3]-'0')) % 10;
+	if (x)
+		x = 10 - x;
+
+	// Check
+	if (s[4] - '0' == x)
+		return 0;
+	else
+		return -1;
+}
+
+/* Code 39 check */
+
+int code39_ok(char *s)
+{
+	int val = 0;
+	int ok = 0;
+	while (*s) {
+		int digval = 0;
+		if (*s >= '0' && *s <= '9')
+			digval = *s - '0';
+		else if (*s >= 'A' && *s <= 'Z')
+			digval = *s - 'A' + 10;
+		else if (*s == '-')
+			digval = 36;
+		else if (*s == '.')
+			digval = 37;
+		else if (*s == '_')
+			digval = 38;
+		else if (*s == '$')
+			digval = 39;
+		else if (*s == '/')
+			digval = 40;
+		else if (*s == '+')
+			digval = 41;
+		else if (*s == '%')
+			digval = 42;
+		else
+			return -1;
+		++s;
+		if (*s) {
+			// This is a regular digit
+			val += digval;
+			ok = 1; // We have at least on regular digit
+		} else {
+			// This is the check digit
+			if (val % 43 == digval && ok) {
+				s[-1] = 0; // Remove the check digit
+				return 0;
+			} else
+				return -1;
+		}
+	}
+	return -1; // Empty string?
+}
 
 /* Flag: when set, screen update is needed */
 
@@ -135,6 +205,8 @@ void scrn_clr()
 void scrn_init()
 {
 	int idx;
+	setfont(HUGE_FONT, NULL); // Select 16x32 font (15 chars x 10 lines)
+	// Defaut was LARGE_FONT: 12x24, 20 chars x 13 lines
 	for (idx = 0; idx != SCRN_WIDTH * SCRN_HEIGHT; ++idx)
 		scrn_old[idx] = -1;
 	scrn_clr();
@@ -317,22 +389,24 @@ void status_scrn_gen()
 	sprintf(buf, " %s", cur_prefix ? cur_prefix : "<not set>");
 	scrn_text(3, 0, 0, buf);
 
-	scrn_text(4, 0, 0, "Locations version:");
+	scrn_text(4, 0, 0, "Locations ver:");
 	sprintf(buf, " %s", cur_version ? cur_version : "<not set>");
 	scrn_text(5, 0, 0, buf);
 
 	getdatetime(&date, &time);
-	scrn_text(6, 0, 0, "Date:");
-	sprintf(buf, " %d/%d/%4.4d", date.da_mon, date.da_day, date.da_year);
+	scrn_text(6, 0, 0, "Date/Time:");
+	sprintf(buf, " %d/%d/%2.2d %2.2d:%2.2d", date.da_mon, date.da_day, date.da_year%100, time.ti_hour, time.ti_min);
+	// 1+2+1+2+1+2 = 9
+	// 1+2+1+2 = 6
 	scrn_text(7, 0, 0, buf);
 
-	scrn_text(8, 0, 0, "Time:");
-	sprintf(buf, " %2.2d:%2.2d:%2.2d", time.ti_hour, time.ti_min, time.ti_sec);
-	scrn_text(9, 0, 0, buf);
+	//scrn_text(8, 0, 0, "Time:");
+	//sprintf(buf, " %2.2d:%2.2d:%2.2d", time.ti_hour, time.ti_min, time.ti_sec);
+	//scrn_text(9, 0, 0, buf);
 
-	scrn_text(10, 0, 0, "Software version:");
+	scrn_text(8, 0, 0, "Software ver:");
 	sprintf(buf, " %s", VERSION);
-	scrn_text(11, 0, 0, buf);
+	scrn_text(9, 0, 0, buf);
 }
 
 /* Scanned items table */
@@ -377,7 +451,7 @@ void add_rec(char *loc, char *item, struct date date, struct time time)
 	}
 	cur = r->next;
 	update_needed = 1;
-	sound(TSTANDARD, VSTANDARD, SLOW, 0);
+	sound(TSTANDARD, VHIGH, SLOW, 0);
 }
 
 /* Delete record at cursor */
@@ -487,7 +561,10 @@ void scrn_gen()
 	count = 0;
 	for (r = top; r != records && count != TABLE_LINES; r = r->next) {
 		char buf[80];
-		sprintf(buf, "%2d/%2d %+5s %+8s", r->date.da_mon, r->date.da_day, r->loc, r->item);
+		// sprintf(buf, "%2d/%2d %+5s %+8s", r->date.da_mon, r->date.da_day, r->loc, r->item);
+		// 20 chars
+		sprintf(buf, "%2d/%2d %+3s %+5s", r->date.da_mon, r->date.da_day, r->loc, r->item);
+		// 15 chars
 		if (r == cur)
 			scrn_text(2 + count, 0, SCRN_INVERSE + ((atoi(r->loc) < 10) ? SCRN_FG_GREEN : SCRN_FG_YELLOW), buf);
 		else
@@ -693,12 +770,18 @@ void enter(char *buf)
 		struct date date;
 		struct time time;
 		getdatetime(&date, &time);
-		sprintf(bf,"%s%s", (cur_prefix ? cur_prefix : ""), buf); /* Prefix item with cur_prefix */
-		add_rec(current_location_code,
-			bf,
-			date,
-			time
-		);
+		// sprintf(bf,"%s%s", (cur_prefix ? cur_prefix : ""), buf); /* Prefix item with cur_prefix */
+		sprintf(bf, "%s", buf); // We no longer have a prefix...
+		if (upc_ok(bf)) {
+			// vibrate(15);
+			sound(TSTANDARD, VHIGH, SERROR, SPAUSE, SLOW, SPAUSE, SERROR, SPAUSE, SLOW, SPAUSE, SERROR, SPAUSE, SERROR, 0);
+		} else {
+			add_rec(current_location_code,
+				bf,
+				date,
+				time
+			);
+		}
 	}
 }
 
@@ -763,31 +846,38 @@ void main(void)
 			barcode.max = 10;
 			status = readbarcode(&barcode);
 			if (status == OK) {
-				if (mode) {
-					mode = 0;
-					update_needed = 1;
-				}
-				if (msg[0]) {
-					msg[0] = 0;
-					update_needed = 1;
-				}
-				scannerpower(OFF, 0);
-				sound(TSTANDARD, VSTANDARD, SHIGH, 0);
-				if (barbuf[0] >= '0' && barbuf[0] <= '9') {
-					/* If it begins with a number assume it's a location */
-					set_loc(barbuf);
-				} else if (barbuf[0] >= 'A' && barbuf[0] <= 'Z') {
-					/* If it begins with a letter assume it's an item */
-					if (current_location_code) {
-						struct date date;
-						struct time time;
-						getdatetime(&date, &time);
-						add_rec(current_location_code,
-							barbuf,
-							date,
-							time
-						);
+				if (!upc_ok(barbuf)) {
+					// Good check digit
+					if (mode) {
+						mode = 0;
+						update_needed = 1;
 					}
+					if (msg[0]) {
+						msg[0] = 0;
+						update_needed = 1;
+					}
+					scannerpower(OFF, 0);
+					if (barbuf[0] >= '0' && barbuf[0] <= '9') {
+						/* If it begins with a number assume it's a location */
+						set_loc(barbuf);
+					} else if (barbuf[0] >= 'A' && barbuf[0] <= 'Z') {
+						/* If it begins with a letter assume it's an item */
+						if (current_location_code) {
+							struct date date;
+							struct time time;
+							getdatetime(&date, &time);
+							add_rec(current_location_code,
+								barbuf,
+								date,
+								time
+							);
+						}
+					}
+				} else {
+					// Check digit failed...
+					scannerpower(OFF, 0);
+					// vibrate(15);
+					sound(TSTANDARD, VHIGH, SERROR, SPAUSE, SLOW, SPAUSE, SERROR, SPAUSE, SLOW, SPAUSE, SERROR, SPAUSE, SERROR, 0);
 				}
 			}
 		}
