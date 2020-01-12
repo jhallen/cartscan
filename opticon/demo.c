@@ -53,14 +53,14 @@ int port;
 #define SCRN_FG_YELLOW (6 << SCRN_FG_SHIFT)
 #define SCRN_FG_BLACK (7 << SCRN_FG_SHIFT)
 
-#define SCRN_BG_WHITE (7 << SCRN_BG_SCRN) 
-#define SCRN_BG_BLUE (6 << SCRN_BG_SCRN)
-#define SCRN_BG_GREEN (5 << SCRN_BG_SCRN)
-#define SCRN_BG_RED (4 << SCRN_BG_SCRN)
-#define SCRN_BG_MAGENTA (3 << SCRN_BG_SCRN)
-#define SCRN_BG_CYAN (2 << SCRN_BG_SCRN)
-#define SCRN_BG_YELLOW (1 << SCRN_BG_SCRN)
-#define SCRN_BG_BLACK (0 << SCRN_BG_SCRN)
+#define SCRN_BG_WHITE (7 << SCRN_BG_SHIFT) 
+#define SCRN_BG_BLUE (6 << SCRN_BG_SHIFT)
+#define SCRN_BG_GREEN (5 << SCRN_BG_SHIFT)
+#define SCRN_BG_RED (4 << SCRN_BG_SHIFT)
+#define SCRN_BG_MAGENTA (3 << SCRN_BG_SHIFT)
+#define SCRN_BG_CYAN (2 << SCRN_BG_SHIFT)
+#define SCRN_BG_YELLOW (1 << SCRN_BG_SHIFT)
+#define SCRN_BG_BLACK (0 << SCRN_BG_SHIFT)
 
 /* Shortened-UPC check */
 
@@ -370,6 +370,16 @@ void loc_scrn_gen()
 
 char *cur_version;
 char *cur_prefix;
+
+/* Generate error screen */
+
+void error_scrn_gen()
+{
+	scrn_clr();
+	scrn_text(0, 0, SCRN_BG_RED | SCRN_FG_BLACK, "   Bad Scan!   ");
+	scrn_text(1, 0, SCRN_BG_RED | SCRN_FG_BLACK, " Hit F4 to     ");
+	scrn_text(2, 0, SCRN_BG_RED | SCRN_FG_BLACK, " continue      ");
+}
 
 /* Generate status screen */
 
@@ -755,7 +765,7 @@ void command(char *cmd)
 }
 
 /* Display mode */
-int mode; /* 0 = main screen, 1 = location selection screen */
+int mode; /* 0 = main screen, 1 = location selection screen, 2 = status screen, 3 = scan error */
 
 /* User hit enter: submit item or change location depending on what
  * was entered */
@@ -775,6 +785,8 @@ void enter(char *buf)
 		if (upc_ok(bf)) {
 			// vibrate(15);
 			sound(TSTANDARD, VHIGH, SERROR, SPAUSE, SLOW, SPAUSE, SERROR, SPAUSE, SLOW, SPAUSE, SERROR, SPAUSE, SERROR, 0);
+			mode = 3;
+			update_needed = 1;
 		} else {
 			add_rec(current_location_code,
 				bf,
@@ -815,6 +827,8 @@ void main(void)
 				loc_scrn_gen();
 			else if (mode == 0)
 				scrn_gen();
+			else if (mode == 3)
+				error_scrn_gen();
 			else
 				status_scrn_gen();
 			scrn_update();
@@ -878,6 +892,8 @@ void main(void)
 					scannerpower(OFF, 0);
 					// vibrate(15);
 					sound(TSTANDARD, VHIGH, SERROR, SPAUSE, SLOW, SPAUSE, SERROR, SPAUSE, SLOW, SPAUSE, SERROR, SPAUSE, SERROR, 0);
+					mode = 3;
+					update_needed = 1;
 				}
 			}
 		}
@@ -920,7 +936,15 @@ void main(void)
 		ch = getchar();
 		if (ch != -1)
 		        repeat = 0;
-		if (mode == 2) { /* Status screen */
+		if (mode == 3) { /* Error screen */
+			switch (ch) {
+				case F4_KEY: { /* Cancel error screen */
+					mode = 0;
+					update_needed = 1;
+					break;
+				}
+			}
+		} else if (mode == 2) { /* Status screen */
 			switch (ch) {
 				case F1_KEY: case F2_KEY: case TRIGGER_KEY: case ENT_KEY: { /* Cancel location selection */
 					mode = 0;
