@@ -273,12 +273,19 @@ void add_loc(char *code, char *name)
 	update_needed = 1;
 }
 
+/* Display mode */
+int mode; /* 0 = main screen, 1 = location selection screen, 2 = status screen, 3 = scan error */
+
 char *find_loc(char *code)
 {
 	struct location *loc;
 	for (loc = locations->next; loc != locations; loc = loc->next)
 		if (!strcmp(loc->code, code))
 			return loc->name;
+	/* Unknown location */
+	sound(TSTANDARD, VHIGH, SERROR, SPAUSE, SLOW, SPAUSE, SERROR, SPAUSE, SLOW, SPAUSE, SERROR, SPAUSE, SERROR, 0);
+	mode = 3;
+	update_needed = 1;
 	return "<unknown>";
 }
 
@@ -764,8 +771,6 @@ void command(char *cmd)
 	}
 }
 
-/* Display mode */
-int mode; /* 0 = main screen, 1 = location selection screen, 2 = status screen, 3 = scan error */
 
 /* User hit enter: submit item or change location depending on what
  * was entered */
@@ -860,22 +865,24 @@ void main(void)
 			barcode.max = 10;
 			status = readbarcode(&barcode);
 			if (status == OK) {
-				if (!upc_ok(barbuf)) {
-					// Good check digit
-					if (mode) {
-						mode = 0;
-						update_needed = 1;
-					}
-					if (msg[0]) {
-						msg[0] = 0;
-						update_needed = 1;
-					}
-					scannerpower(OFF, 0);
-					if (barbuf[0] >= '0' && barbuf[0] <= '9') {
-						/* If it begins with a number assume it's a location */
-						set_loc(barbuf);
-					} else if (barbuf[0] >= 'A' && barbuf[0] <= 'Z') {
-						/* If it begins with a letter assume it's an item */
+				scannerpower(OFF, 0);
+				if (mode) {
+					/* Switch to cart entry mode in case we were in another mode */
+					mode = 0;
+					update_needed = 1;
+				}
+				if (msg[0]) {
+					/* Clear top of screen message */
+					msg[0] = 0;
+					update_needed = 1;
+				}
+				if (strlen(barbuf) < 4) {
+					/* Assume it's a customer */
+					set_loc(barbuf);
+				} else {
+					/* Assume it's a cart */
+					if (!upc_ok(barbuf)) {
+						/* Good check digit */
 						if (current_location_code) {
 							struct date date;
 							struct time time;
@@ -885,15 +892,18 @@ void main(void)
 								date,
 								time
 							);
+						} else {
+							/* Indicate bad scan if location was not set */
+							sound(TSTANDARD, VHIGH, SERROR, SPAUSE, SLOW, SPAUSE, SERROR, SPAUSE, SLOW, SPAUSE, SERROR, SPAUSE, SERROR, 0);
+							mode = 3;
+							update_needed = 1;
 						}
+					} else {
+						/* Indicate bad scan */
+						sound(TSTANDARD, VHIGH, SERROR, SPAUSE, SLOW, SPAUSE, SERROR, SPAUSE, SLOW, SPAUSE, SERROR, SPAUSE, SERROR, 0);
+						mode = 3;
+						update_needed = 1;
 					}
-				} else {
-					// Check digit failed...
-					scannerpower(OFF, 0);
-					// vibrate(15);
-					sound(TSTANDARD, VHIGH, SERROR, SPAUSE, SLOW, SPAUSE, SERROR, SPAUSE, SLOW, SPAUSE, SERROR, SPAUSE, SERROR, 0);
-					mode = 3;
-					update_needed = 1;
 				}
 			}
 		}
