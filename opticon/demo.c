@@ -280,8 +280,10 @@ char *find_loc(char *code)
 {
 	struct location *loc;
 	for (loc = locations->next; loc != locations; loc = loc->next)
-		if (!strcmp(loc->code, code))
+		if (!strcmp(loc->code, code)) {
+			sound(TSTANDARD, VHIGH, SLOW, 0);
 			return loc->name;
+		}
 	/* Unknown location */
 	sound(TSTANDARD, VHIGH, SERROR, SPAUSE, SLOW, SPAUSE, SERROR, SPAUSE, SLOW, SPAUSE, SERROR, SPAUSE, SERROR, 0);
 	mode = 3;
